@@ -12,12 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { industries, locations, companySizes } from "@/lib/mockData";
+import { createCompany, industries, locations, companySizes } from "@/lib/mockData";
 import { toast } from "sonner";
 
 export default function CreateCompany() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    id: "",
     name: "",
     industry: "",
     location: "",
@@ -25,10 +26,11 @@ export default function CreateCompany() {
     website: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Company name is required";
     }
@@ -51,17 +53,29 @@ export default function CreateCompany() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error("Please fix the errors in the form");
       return;
     }
 
-    // In a real app, this would make an API call
-    toast.success("Company created successfully!");
-    navigate("/");
+    // Generate unique ID before submission
+    const uniqueId = crypto.randomUUID();
+    const dataToSubmit = { ...formData, id: uniqueId };
+
+    setLoading(true);
+    try {
+      await createCompany(dataToSubmit);
+      toast.success("Company created successfully!");
+      navigate("/");
+    } catch (error) {
+      toast.error("Failed to create company");
+      console.error("Error creating company:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -162,8 +176,10 @@ export default function CreateCompany() {
             </div>
 
             <div className="flex gap-4 pt-4">
-              <Button type="submit" className="flex-1">Create Company</Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/")}>
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "Creating..." : "Create Company"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => navigate("/")} disabled={loading}>
                 Cancel
               </Button>
             </div>

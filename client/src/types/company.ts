@@ -10,6 +10,7 @@ export interface Company {
 }
 
 export interface CompanyFormData {
+  id: string;
   name: string;
   industry: string;
   location: string;

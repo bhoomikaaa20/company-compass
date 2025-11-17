@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Building2, Edit, ExternalLink, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,24 +12,42 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockCompanies, industries, locations } from "@/lib/mockData";
+import { getCompanies, industries, locations } from "@/lib/mockData";
+import { Company } from "@/types/company";
 
 export default function KanbanView() {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
 
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const data = await getCompanies();
+        setCompanies(data);
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
   const filteredCompanies = useMemo(() => {
-    return mockCompanies.filter((company) => {
+    return companies.filter((company) => {
       const matchesSearch = company.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesIndustry = selectedIndustry === "all" || company.industry === selectedIndustry;
       const matchesLocation = selectedLocation === "all" || company.location === selectedLocation;
       return matchesSearch && matchesIndustry && matchesLocation;
     });
-  }, [searchQuery, selectedIndustry, selectedLocation]);
+  }, [companies, searchQuery, selectedIndustry, selectedLocation]);
 
   const groupedByIndustry = useMemo(() => {
-    const groups: Record<string, typeof mockCompanies> = {};
+    const groups: Record<string, Company[]> = {};
     filteredCompanies.forEach((company) => {
       if (!groups[company.industry]) {
         groups[company.industry] = [];
@@ -86,7 +104,21 @@ export default function KanbanView() {
         </Select>
       </div>
 
-      {Object.keys(groupedByIndustry).length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-3">
+                <div className="h-6 bg-muted rounded w-3/4"></div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="h-4 bg-muted rounded w-full"></div>
+                <div className="h-4 bg-muted rounded w-2/3"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : Object.keys(groupedByIndustry).length === 0 ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <p className="text-muted-foreground">No companies found</p>

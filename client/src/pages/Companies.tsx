@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Edit, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,21 +37,37 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { CompanyTableSkeleton } from "@/components/CompanyTableSkeleton";
-import { mockCompanies, industries, locations } from "@/lib/mockData";
+import { getCompanies, deleteCompany, industries, locations } from "@/lib/mockData";
 import { Company } from "@/types/company";
 import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function Companies() {
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies);
-  const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const data = await getCompanies();
+        setCompanies(data);
+      } catch (error) {
+        toast.error("Failed to load companies");
+        console.error("Error fetching companies:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
 
   const filteredCompanies = useMemo(() => {
     return companies.filter((company) => {
@@ -71,12 +87,18 @@ export default function Companies() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (companyToDelete) {
-      setCompanies(companies.filter((c) => c.id !== companyToDelete));
-      toast.success("Company deleted successfully");
-      setDeleteDialogOpen(false);
-      setCompanyToDelete(null);
+      try {
+        await deleteCompany(companyToDelete);
+        setCompanies(companies.filter((c) => c.id !== companyToDelete));
+        toast.success("Company deleted successfully");
+        setDeleteDialogOpen(false);
+        setCompanyToDelete(null);
+      } catch (error) {
+        toast.error("Failed to delete company");
+        console.error("Error deleting company:", error);
+      }
     }
   };
 

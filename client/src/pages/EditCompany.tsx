@@ -13,14 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { industries, locations, companySizes, mockCompanies } from "@/lib/mockData";
+import { updateCompany, industries, locations, companySizes } from "@/lib/mockData";
 import { toast } from "sonner";
-import { Company } from "@/types/company";
+import { Company, CompanyFormData } from "@/types/company";
 
 export default function EditCompany() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -32,29 +33,42 @@ export default function EditCompany() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // Simulate API fetch
-    setTimeout(() => {
-      const foundCompany = mockCompanies.find((c) => c.id === id);
-      if (foundCompany) {
-        setCompany(foundCompany);
-        setFormData({
-          name: foundCompany.name,
-          industry: foundCompany.industry,
-          location: foundCompany.location,
-          size: foundCompany.size,
-          website: foundCompany.website,
-        });
-      } else {
-        toast.error("Company not found");
+    const fetchCompany = async () => {
+      if (!id) return;
+
+      try {
+        // For now, we'll need to fetch all companies and find the one by id
+        // In a real app, there might be a getCompany(id) endpoint
+        const companies = await import("@/lib/mockData").then(m => m.getCompanies());
+        const foundCompany = companies.find((c) => c.id === id);
+        if (foundCompany) {
+          setCompany(foundCompany);
+          setFormData({
+            name: foundCompany.name,
+            industry: foundCompany.industry,
+            location: foundCompany.location,
+            size: foundCompany.size,
+            website: foundCompany.website,
+          });
+        } else {
+          toast.error("Company not found");
+          navigate("/");
+        }
+      } catch (error) {
+        toast.error("Failed to load company");
+        console.error("Error fetching company:", error);
         navigate("/");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchCompany();
   }, [id, navigate]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Company name is required";
     }
@@ -77,17 +91,27 @@ export default function EditCompany() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error("Please fix the errors in the form");
       return;
     }
 
-    // In a real app, this would make an API call
-    toast.success("Company updated successfully!");
-    navigate("/");
+    if (!id) return;
+
+    setSaving(true);
+    try {
+      await updateCompany(id, formData as CompanyFormData);
+      toast.success("Company updated successfully!");
+      navigate("/");
+    } catch (error) {
+      toast.error("Failed to update company");
+      console.error("Error updating company:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -214,8 +238,10 @@ export default function EditCompany() {
             </div>
 
             <div className="flex gap-4 pt-4">
-              <Button type="submit" className="flex-1">Save Changes</Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/")}>
+              <Button type="submit" className="flex-1" disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => navigate("/")} disabled={saving}>
                 Cancel
               </Button>
             </div>
